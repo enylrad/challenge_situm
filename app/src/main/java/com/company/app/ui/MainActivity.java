@@ -2,13 +2,18 @@ package com.company.app.ui;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatSpinner;
+import androidx.cardview.widget.CardView;
 
 import com.company.app.R;
+import com.company.app.commons.utils.FormatUtilsKt;
 import com.company.app.commons.utils.SpinnerExtensions;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -34,6 +39,7 @@ import es.situm.sdk.model.cartography.Building;
 import es.situm.sdk.model.cartography.Floor;
 import es.situm.sdk.model.cartography.Poi;
 import es.situm.sdk.model.cartography.Point;
+import es.situm.sdk.model.directions.Indication;
 import es.situm.sdk.model.directions.Route;
 import es.situm.sdk.model.directions.RouteSegment;
 import es.situm.sdk.model.location.Angle;
@@ -53,10 +59,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private GoogleMap mMap;
     private AppCompatSpinner spBuildings;
+    private ProgressBar progressBar;
+
+    private CardView layoutDetails;
+    private TextView tvDistance;
+    private TextView tvFloors;
+
     private ArrayList<Marker> buildingMakers = new ArrayList<>();
     private ArrayList<Marker> markerSelected = new ArrayList<>();
 
     private List<Polyline> polylines = new ArrayList<>();
+
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -64,6 +77,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.activity_main);
 
         spBuildings = findViewById(R.id.sp_buildings);
+        progressBar = findViewById(R.id.progress_bar);
+
+        layoutDetails = findViewById(R.id.layout_details);
+        tvDistance = findViewById(R.id.tv_distance);
+        tvFloors = findViewById(R.id.tv_floors);
 
         initSupportMapFragment();
         getBuildings(() -> buildSpinnerBuildings(buildsMoreOneFloor));
@@ -79,9 +97,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.getUiSettings().setCompassEnabled(false);
+        mMap.getUiSettings().setMapToolbarEnabled(false);
     }
 
     private void getBuildings(OnCallbackBuildings onCallbackBuildings) {
+        showProgressBar();
         SitumSdk.communicationManager().fetchBuildings(new Handler<Collection<Building>>() {
             @Override
             public void onSuccess(Collection<Building> buildings) {
@@ -92,6 +113,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
 
                 if (arrayListBuildings.isEmpty()) {
+                    hideProgressBar();
                     Timber.e("onSuccess: you have no buildings. Create one in the Dashboard");
                     return;
                 }
@@ -101,6 +123,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public void onFailure(Error error) {
+                hideProgressBar();
                 Timber.e("onFailure: %s", error);
             }
         });
@@ -133,6 +156,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void notifyCallback(OnCallbackBuildings callbackFinish) {
         if (++count == buildingSize) {
+            hideProgressBar();
             Timber.d("Finish Handlers");
             callbackFinish.onFinish();
         }
@@ -147,6 +171,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void getPoisFromBuilding(Building building) {
         buildingSelected = building;
         if (mMap != null) {
+            showProgressBar();
             SitumSdk.communicationManager().fetchIndoorPOIsFromBuilding(building, new Handler<Collection<Poi>>() {
                 @Override
                 public void onSuccess(Collection<Poi> pois) {
@@ -159,11 +184,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             drawPoi(poi);
                         }
                     }
+                    hideProgressBar();
                 }
 
                 @Override
                 public void onFailure(Error error) {
                     Timber.e("onFailure: %s", error);
+                    hideProgressBar();
                 }
             });
         }
@@ -175,8 +202,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         markerSelected.clear();
     }
 
-    private void clearPolyLine(){
-        for(Polyline line: polylines){
+    private void clearPolyLine() {
+        for (Polyline line : polylines) {
             line.remove();
         }
         polylines.clear();
@@ -228,6 +255,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void calculateRoute() {
         if (markerSelected.size() == 2) {
+            showProgressBar();
             clearPolyLine();
             CoordinateConverter coordinateConverter = new CoordinateConverter(buildingSelected.getDimensions(), buildingSelected.getCenter(), buildingSelected.getRotation());
             Point origin = createPoint(markerSelected.get(0), coordinateConverter);
@@ -241,15 +269,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 public void onSuccess(Route route) {
                     drawRoute(route);
                     centerCamera(route);
-
+                    showDetails(route);
+                    hideProgressBar();
                 }
 
                 @Override
                 public void onFailure(Error error) {
+                    hideDetails();
+                    hideProgressBar();
                     Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
                 }
             });
         } else {
+            hideProgressBar();
             Timber.w("You need to select two points to receive a route");
         }
     }
@@ -280,6 +312,39 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             polylines.add(mMap.addPolyline(polyLineOptions));
 
         }
+    }
+
+    private void showProgressBar() {
+        progressBar.setVisibility(View.VISIBLE);
+    }
+
+    private void hideProgressBar() {
+        progressBar.setVisibility(View.GONE);
+    }
+
+    private void showDetails(Route route) {
+        layoutDetails.setVisibility(View.VISIBLE);
+        String textDistance = "Distance: " + FormatUtilsKt.toDistanceString(route.getDistance());
+        tvDistance.setText(textDistance);
+        String textLevels = "Floor changes: " + getLevelsRoute(route);
+        tvFloors.setText(textLevels);
+    }
+
+    private int getLevelsRoute(Route route) {
+        int levelsChange = 0;
+        List<Indication> indications = route.getIndications();
+        for (Indication indication : indications) {
+            if (indication.isNeededLevelChange()) {
+                levelsChange++;
+            }
+        }
+        return levelsChange;
+    }
+
+    private void hideDetails() {
+        layoutDetails.setVisibility(View.GONE);
+        tvDistance.setText("");
+        tvFloors.setText("");
     }
 
     public interface OnCallbackBuildings {
