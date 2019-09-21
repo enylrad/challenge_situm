@@ -3,9 +3,12 @@ package com.company.app.ui;
 import android.os.Bundle;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.AppCompatSpinner;
 
 import com.company.app.R;
+import com.company.app.commons.utils.SpinnerExtensions;
 import com.company.app.ui.base.BaseActivity;
+import com.company.app.ui.callbacks.OnCallbackBuildings;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -23,59 +26,24 @@ import timber.log.Timber;
 public class MainActivity extends BaseActivity implements OnMapReadyCallback {
 
     public static final String TAG = MainActivity.class.getSimpleName();
+
+    ArrayList<Building> buildsMoreOneFloor;
+    int buildingSize;
+    int count;
+
     private GoogleMap mMap;
+
+    private AppCompatSpinner spBuildings;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        spBuildings = findViewById(R.id.sp_buildings);
+
         initSupportMapFragment();
-
-        SitumSdk.communicationManager().fetchBuildings(new Handler<Collection<Building>>() {
-            @Override
-            public void onSuccess(Collection<Building> buildings) {
-                Timber.d("onSuccess: Your buildings: ");
-                ArrayList<Building> arrayListBuildings = new ArrayList<>(buildings);
-                for (Building building : arrayListBuildings) {
-                    Timber.i("onSuccess: %s - %s", building.getIdentifier(), building.getName());
-                }
-
-                if (arrayListBuildings.isEmpty()) {
-                    Timber.e("onSuccess: you have no buildings. Create one in the Dashboard");
-                    return;
-                }
-
-                filterFloors(arrayListBuildings);
-            }
-
-            @Override
-            public void onFailure(Error error) {
-                Timber.e("onFailure: %s", error);
-            }
-        });
-
-    }
-
-    private void filterFloors(ArrayList<Building> buildings) {
-        for (Building building : buildings) {
-            SitumSdk.communicationManager().fetchFloorsFromBuilding(building, new Handler<Collection<Floor>>() {
-                @Override
-                public void onSuccess(Collection<Floor> floors) {
-                    Timber.d("onSuccess: Your building floors: %s", floors.size());
-                    if (floors.size() <= 1) {
-                        buildings.remove(building);
-                    }
-                    Timber.d("Buildings: %s", buildings.size());
-                }
-
-                @Override
-                public void onFailure(Error error) {
-                    Timber.e("onFailure: %s", error);
-                }
-            });
-        }
-
+        getBuildings(() -> buildSpinnerBuildings(buildsMoreOneFloor));
     }
 
     private void initSupportMapFragment() {
@@ -90,5 +58,71 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback {
         mMap = googleMap;
 
         //TODO
+    }
+
+
+    private void getBuildings(OnCallbackBuildings onCallbackBuildings) {
+        SitumSdk.communicationManager().fetchBuildings(new Handler<Collection<Building>>() {
+            @Override
+            public void onSuccess(Collection<Building> buildings) {
+                Timber.d("onSuccess: Your buildings: ");
+                ArrayList<Building> arrayListBuildings = new ArrayList<>(buildings);
+                for (Building building : arrayListBuildings) {
+                    Timber.i("onSuccess: %s - %s", building.getIdentifier(), building.getName());
+                }
+
+                if (arrayListBuildings.isEmpty()) {
+                    Timber.e("onSuccess: you have no buildings. Create one in the Dashboard");
+                    return;
+                }
+
+                filterFloors(arrayListBuildings, onCallbackBuildings);
+            }
+
+            @Override
+            public void onFailure(Error error) {
+                Timber.e("onFailure: %s", error);
+            }
+        });
+    }
+
+    private void filterFloors(ArrayList<Building> buildings, OnCallbackBuildings callbackFinish) {
+        buildsMoreOneFloor = buildings;
+        buildingSize = buildings.size();
+        count = 0;
+        for (Building building : buildings) {
+            SitumSdk.communicationManager().fetchFloorsFromBuilding(building, new Handler<Collection<Floor>>() {
+                @Override
+                public void onSuccess(Collection<Floor> floors) {
+                    Timber.d("onSuccess: Your building floors: %s", floors.size());
+                    if (floors.size() <= 1) {
+                        buildsMoreOneFloor.remove(building);
+                    }
+                    Timber.d("Buildings: %s", buildsMoreOneFloor.size());
+                    notifyCallback(callbackFinish);
+                }
+
+                @Override
+                public void onFailure(Error error) {
+                    Timber.e("onFailure: %s", error);
+                    notifyCallback(callbackFinish);
+                }
+            });
+        }
+        Timber.d("Finish For");
+    }
+
+    private void notifyCallback(OnCallbackBuildings callbackFinish) {
+        if (++count == buildingSize) {
+            callbackFinish.onFinish();
+            Timber.d("Finish Handlers");
+            Timber.d("Buildings: %s", buildsMoreOneFloor.size());
+
+        }
+    }
+
+
+    private void buildSpinnerBuildings(ArrayList<Building> buildings) {
+        SpinnerExtensions.INSTANCE.setSpinnerBuildings(spBuildings, buildings);
     }
 }
