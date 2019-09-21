@@ -4,20 +4,21 @@ import android.os.Bundle;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatSpinner;
 
 import com.company.app.R;
 import com.company.app.commons.utils.SpinnerExtensions;
-import com.company.app.ui.base.BaseActivity;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,7 +31,7 @@ import es.situm.sdk.model.cartography.Poi;
 import es.situm.sdk.utils.Handler;
 import timber.log.Timber;
 
-public class MainActivity extends BaseActivity implements OnMapReadyCallback {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     public static final String TAG = MainActivity.class.getSimpleName();
 
@@ -40,6 +41,8 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private AppCompatSpinner spBuildings;
+    private ArrayList<Marker> buildingPois = new ArrayList<>();
+    private ArrayList<Marker> selectedMakers = new ArrayList<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -129,14 +132,16 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback {
 
     private void getPoisFromBuilding(Building building) {
         if (mMap != null) {
-            mMap.clear();
             SitumSdk.communicationManager().fetchIndoorPOIsFromBuilding(building, new Handler<Collection<Poi>>() {
                 @Override
                 public void onSuccess(Collection<Poi> pois) {
                     if (pois.isEmpty()) {
-                        Toast.makeText(MainActivity.this, "There isnt any poi in the building: " + building.getName() + ". Go to the situm dashboard and create at least one poi before execute again this example", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "There isn't any poi in the building: " + building.getName() + ". Go to the situm dashboard and create at least one poi before execute again this example", Toast.LENGTH_LONG).show();
                     } else {
                         Timber.d("onSuccess: Your pois: %s", pois.toString());
+                        mMap.clear();
+                        buildingPois.clear();
+                        selectedMakers.clear();
                         for (Poi poi : pois) {
                             drawPoi(poi);
                         }
@@ -159,9 +164,25 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback {
         MarkerOptions markerOptions = new MarkerOptions()
                 .position(latLng)
                 .title(poi.getName());
-        mMap.addMarker(markerOptions);
+        buildingPois.add(mMap.addMarker(markerOptions));
+        mMap.setOnMarkerClickListener(this::logicOnClickMaker);
         builder.include(latLng);
         mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(), 100));
+    }
+
+    private boolean logicOnClickMaker(Marker marker) {
+        if (!selectedMakers.contains(marker)) {
+            if (selectedMakers.size() >= 2) {
+                Marker markerToRemove = selectedMakers.get(0);
+                int indexMakerToRemove = buildingPois.indexOf(selectedMakers.get(0));
+                buildingPois.get(indexMakerToRemove).setIcon(BitmapDescriptorFactory.defaultMarker());
+                selectedMakers.remove(markerToRemove);
+            }
+            selectedMakers.add(marker);
+            marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+        }
+        Timber.d("Makers selected: %s", selectedMakers.toString());
+        return false;
     }
 
     public interface OnCallbackBuildings {
