@@ -8,6 +8,9 @@ androidExtensions {
     experimental = true
 }
 
+def properties = new Properties()
+file("../keys.properties").withInputStream { properties.load(it) }
+
 android {
     compileOptions {
         sourceCompatibility versions.sourceCompat
@@ -49,6 +52,10 @@ android {
     productFlavors {
         prod {
             dimension "enviroment"
+
+            resValue 'string', 'situm_email', properties.getProperty("SITUM_API_EMAIL")
+            resValue 'string', 'situm_key', properties.getProperty("SITUM_API_KEY")
+            resValue 'string', 'google_maps_key', properties.getProperty("MAPS_API_KEY")
         }
 
         blue {
@@ -88,6 +95,12 @@ dependencies {
 
     //Timber
     implementation 'com.jakewharton.timber:timber:4.7.1'
+
+    implementation('es.situm:situm-sdk:2.40.0@aar') {
+        transitive = true
+    }
+
+    implementation 'com.google.android.gms:play-services-maps:17.0.0'
 
     //Test
     testImplementation 'junit:junit:4.12'
