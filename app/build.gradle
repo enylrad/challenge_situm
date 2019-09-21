@@ -1,0 +1,97 @@
+apply plugin: 'com.android.application'
+
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+
+apply plugin: 'kotlin-android-extensions'
+androidExtensions {
+    experimental = true
+}
+
+android {
+    compileOptions {
+        sourceCompatibility versions.sourceCompat
+        targetCompatibility versions.targetCompat
+    }
+
+    compileSdkVersion 29
+    defaultConfig {
+        applicationId "com.situm.challenge"
+        minSdkVersion 21
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0.0"
+        multiDexEnabled true
+        vectorDrawables.useSupportLibrary true
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            debuggable false
+
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
+
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    flavorDimensions "app", "enviroment"
+    productFlavors {
+        prod {
+            dimension "enviroment"
+        }
+
+        blue {
+            dimension "app"
+            resValue "string", "app_name", "Situm Test Blue"
+            applicationId "com.situm.challenge.blue"
+            versionCode 1
+            versionName "1.0.0"
+        }
+
+        red {
+            dimension "app"
+            resValue "string", "app_name", "Situm Test Red"
+            applicationId "com.situm.challenge.red"
+            versionCode 1
+            versionName "1.0.0"
+        }
+
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    //Kotlin
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${versions.kotlin}"
+
+    //Android
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.core:core-ktx:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation 'com.google.android.material:material:1.0.0'
+
+    //Anko
+    implementation "org.jetbrains.anko:anko:${versions.anko}"
+    implementation "org.jetbrains.anko:anko-constraint-layout:${versions.anko}"
+
+    //Timber
+    implementation 'com.jakewharton.timber:timber:4.7.1'
+
+    //Test
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test:runner:1.2.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+
+}
