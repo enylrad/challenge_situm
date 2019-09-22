@@ -288,7 +288,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             });
         } else {
-            hideProgressBar();
             Timber.w("You need to select two points to receive a route");
         }
     }
