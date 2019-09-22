@@ -2,9 +2,7 @@ package com.company.app.commons.utils
 
 import android.view.View
 import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.Spinner
-import com.company.app.R
 import es.situm.sdk.model.cartography.Building
 
 /**
@@ -12,17 +10,6 @@ import es.situm.sdk.model.cartography.Building
  * @author chetansachdeva on 10/04/18
  */
 object SpinnerExtensions {
-
-    /**
-     * set spinner entries
-     */
-    fun Spinner.setSpinnerEntries(entries: List<Any>?) {
-        if (entries != null) {
-            val arrayAdapter = ArrayAdapter(context, R.layout.adapter_spinner_custom, entries)
-            arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            adapter = arrayAdapter
-        }
-    }
 
     /**
      * set spinner buildings
@@ -56,24 +43,6 @@ object SpinnerExtensions {
                 override fun onNothingSelected(parent: AdapterView<*>) {}
             }
         }
-    }
-
-    /**
-     * set spinner value
-     */
-    fun Spinner.setSpinnerValue(value: Any?) {
-        if (adapter != null) {
-            val position = (adapter as ArrayAdapter<Any>).getPosition(value)
-            setSelection(position, false)
-            tag = position
-        }
-    }
-
-    /**
-     * get spinner value
-     */
-    fun Spinner.getSpinnerValue(): Any? {
-        return selectedItem
     }
 
     interface ItemSelectedListener {

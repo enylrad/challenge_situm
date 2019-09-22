@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public static final String TAG = MainActivity.class.getSimpleName();
 
-    ArrayList<Building> buildsMoreOneFloor;
+    private ArrayList<Building> buildsMoreOneFloor;
     private Building buildingSelected;
     private int buildingSize;
     private int count;
@@ -61,14 +61,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private AppCompatSpinner spBuildings;
     private ProgressBar progressBar;
 
-    private CardView layoutDetails;
-    private TextView tvDistance;
-    private TextView tvFloors;
-
     private ArrayList<Marker> buildingMakers = new ArrayList<>();
     private ArrayList<Marker> markerSelected = new ArrayList<>();
 
     private List<Polyline> polylines = new ArrayList<>();
+
+    private CardView layoutDetails;
+    private TextView tvDistance;
+    private TextView tvFloors;
 
 
     @Override
@@ -257,13 +257,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (markerSelected.size() == 2) {
             showProgressBar();
             clearPolyLine();
-            CoordinateConverter coordinateConverter = new CoordinateConverter(buildingSelected.getDimensions(), buildingSelected.getCenter(), buildingSelected.getRotation());
-            Point origin = createPoint(markerSelected.get(0), coordinateConverter);
-            Point destination = createPoint(markerSelected.get(1), coordinateConverter);
+
+            Building building = buildingSelected;
+            Marker markerOrigin = markerSelected.get(0);
+            Marker markerDestination = markerSelected.get(1);
+
+            CoordinateConverter coordinateConverter = new CoordinateConverter(building.getDimensions(), building.getCenter(), building.getRotation());
+            Point origin = createPoint(markerOrigin, coordinateConverter);
+            Point destination = createPoint(markerDestination, coordinateConverter);
+
             DirectionsRequest directionsRequest = new DirectionsRequest.Builder()
                     .from(origin, Angle.EMPTY)
                     .to(destination)
                     .build();
+
             SitumSdk.directionsManager().requestDirections(directionsRequest, new Handler<Route>() {
                 @Override
                 public void onSuccess(Route route) {
@@ -314,6 +321,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    private int getLevelsRoute(Route route) {
+        int levelsChange = 0;
+        List<Indication> indications = route.getIndications();
+        for (Indication indication : indications) {
+            if (indication.isNeededLevelChange()) {
+                levelsChange++;
+            }
+        }
+        return levelsChange;
+    }
+
     private void showProgressBar() {
         progressBar.setVisibility(View.VISIBLE);
     }
@@ -330,17 +348,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         tvFloors.setText(textLevels);
     }
 
-    private int getLevelsRoute(Route route) {
-        int levelsChange = 0;
-        List<Indication> indications = route.getIndications();
-        for (Indication indication : indications) {
-            if (indication.isNeededLevelChange()) {
-                levelsChange++;
-            }
-        }
-        return levelsChange;
-    }
-
     private void hideDetails() {
         layoutDetails.setVisibility(View.GONE);
         tvDistance.setText("");
@@ -348,6 +355,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public interface OnCallbackBuildings {
-        void onFinish();   //method, which can have parameters
+        void onFinish();
     }
 }
