@@ -52,20 +52,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public static final String TAG = MainActivity.class.getSimpleName();
 
-    private ArrayList<Building> buildsMoreOneFloor;
+    private List<Building> buildsMoreOneFloor;
     private Building buildingSelected;
     private int buildingSize;
     private int count;
 
     private GoogleMap mMap;
-    private AppCompatSpinner spBuildings;
-    private ProgressBar progressBar;
 
-    private ArrayList<Marker> buildingMakers = new ArrayList<>();
-    private ArrayList<Marker> markerSelected = new ArrayList<>();
+    private List<Marker> buildingMakers = new ArrayList<>();
+    private List<Marker> markerSelected = new ArrayList<>();
 
     private List<Polyline> polylines = new ArrayList<>();
 
+    private AppCompatSpinner spBuildings;
+    private ProgressBar progressBar;
     private CardView layoutDetails;
     private TextView tvDistance;
     private TextView tvFloors;
@@ -97,8 +97,30 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+
         mMap.getUiSettings().setCompassEnabled(false);
         mMap.getUiSettings().setMapToolbarEnabled(false);
+
+        mMap.setOnMarkerClickListener(this::logicOnClickMaker);
+    }
+
+    private boolean logicOnClickMaker(Marker marker) {
+        if (!markerSelected.contains(marker)) {
+            if (markerSelected.size() >= 2) {
+                Marker markerToRemove = markerSelected.get(0);
+                int indexMakerToRemove = buildingMakers.indexOf(markerSelected.get(0));
+                buildingMakers.get(indexMakerToRemove).setIcon(BitmapDescriptorFactory.defaultMarker());
+                markerSelected.remove(markerToRemove);
+            }
+            markerSelected.add(marker);
+            marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+
+            if (markerSelected.size() == 2) {
+                calculateRoute();
+            }
+        }
+        Timber.d("Makers selected: %s", markerSelected.toString());
+        return false;
     }
 
     private void getBuildings(OnCallbackBuildings onCallbackBuildings) {
@@ -107,7 +129,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onSuccess(Collection<Building> buildings) {
                 Timber.d("onSuccess: Your buildings: ");
-                ArrayList<Building> arrayListBuildings = new ArrayList<>(buildings);
+                List<Building> arrayListBuildings = new ArrayList<>(buildings);
                 for (Building building : arrayListBuildings) {
                     Timber.i("onSuccess: %s - %s", building.getIdentifier(), building.getName());
                 }
@@ -129,7 +151,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    private void filterFloors(ArrayList<Building> buildings, OnCallbackBuildings callbackFinish) {
+    private void filterFloors(List<Building> buildings, OnCallbackBuildings callbackFinish) {
         buildsMoreOneFloor = buildings;
         buildingSize = buildings.size();
         count = 0;
@@ -163,7 +185,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-    private void buildSpinnerBuildings(ArrayList<Building> buildings) {
+    private void buildSpinnerBuildings(List<Building> buildings) {
         SpinnerExtensions.INSTANCE.setSpinnerBuildings(spBuildings, buildings);
         SpinnerExtensions.INSTANCE.setSpinnerItemSelectedListener(spBuildings, item -> getPoisFromBuilding((Building) item));
     }
@@ -221,28 +243,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         marker.setTag(poi);
         buildingMakers.add(marker);
 
-        mMap.setOnMarkerClickListener(this::logicOnClickMaker);
         builder.include(latLng);
         mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(), 100));
-    }
-
-    private boolean logicOnClickMaker(Marker marker) {
-        if (!markerSelected.contains(marker)) {
-            if (markerSelected.size() >= 2) {
-                Marker markerToRemove = markerSelected.get(0);
-                int indexMakerToRemove = buildingMakers.indexOf(markerSelected.get(0));
-                buildingMakers.get(indexMakerToRemove).setIcon(BitmapDescriptorFactory.defaultMarker());
-                markerSelected.remove(markerToRemove);
-            }
-            markerSelected.add(marker);
-            marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
-
-            if (markerSelected.size() == 2) {
-                calculateRoute();
-            }
-        }
-        Timber.d("Makers selected: %s", markerSelected.toString());
-        return false;
     }
 
     private Point createPoint(Marker marker, CoordinateConverter coordinateConverter) {
